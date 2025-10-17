@@ -163,7 +163,6 @@ sequenceDiagram
     participant Gateway
     participant Auth
     participant Keycloak
-    participant Redis
     participant Database
     
     User->>Web: Enter username & password
@@ -182,7 +181,6 @@ sequenceDiagram
         Keycloak->>Keycloak: Generate tokens (Access + Refresh)
         Keycloak-->>Auth: Access Token + Refresh Token + ID Token
         
-        Auth->>Redis: Cache user session
         Auth->>Auth: Create custom JWT (optional)
         Auth-->>Gateway: JWT Token + User info
         Gateway-->>Web: 200 OK + JWT Token
@@ -218,27 +216,7 @@ Web application thực hiện validation ngay trên client:
 - Body chứa: `{ username, email, password, fullName }`
 
 #### Bước 4: Server-side Validation
-Auth Service thực hiện validation nghiêm ngặt:
-```java
-@Validated
-public class RegisterRequest {
-    @NotBlank(message = "Username is required")
-    @Size(min = 3, max = 20)
-    private String username;
-    
-    @Email(message = "Invalid email format")
-    @NotBlank(message = "Email is required")
-    private String email;
-    
-    @Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
-             message = "Password must be at least 8 characters...")
-    private String password;
-    
-    @NotBlank(message = "Full name is required")
-    private String fullName;
-}
-```
-
+Auth Service thực hiện validation 
 #### Bước 5: Tạo User Trong Keycloak
 - Auth Service gọi Keycloak Admin API để tạo user
 - Keycloak tự động hash password bằng **bcrypt**
@@ -319,11 +297,7 @@ Nếu xác thực thành công, Keycloak tạo 3 loại token:
 
 **ID Token**: Chứa thông tin identity của user
 
-#### Bước 6: Cache Session
-- Auth Service cache session info trong Redis (TTL = access token expiry)
-- Key: `session:{userId}`, Value: `{accessToken, refreshToken, userInfo}`
-
-#### Bước 7: Trả JWT Về Client
+#### Bước 6: Trả JWT Về Client
 ```json
 {
   "accessToken": "eyJhbGciOiJSUzI1NiIs...",
@@ -340,7 +314,7 @@ Nếu xác thực thành công, Keycloak tạo 3 loại token:
 }
 ```
 
-#### Bước 8: Client Lưu Token
+#### Bước 7: Client Lưu Token
 - Access token được lưu trong `localStorage` hoặc `sessionStorage`
 - Refresh token được lưu trong `httpOnly cookie` (bảo mật hơn)
 - Mọi request sau này sẽ gửi kèm: `Authorization: Bearer {accessToken}`
@@ -355,7 +329,6 @@ sequenceDiagram
     participant Gateway
     participant Auth
     participant Keycloak
-    participant Redis
     
     Note over Web: Access token expired (401)
     Web->>Gateway: POST /auth/refresh
@@ -370,7 +343,6 @@ sequenceDiagram
     alt Refresh Token Valid
         Keycloak->>Keycloak: Generate new tokens
         Keycloak-->>Auth: New Access Token + New Refresh Token
-        Auth->>Redis: Update cached session
         Auth-->>Gateway: New tokens
         Gateway-->>Web: 200 OK + New tokens
         Web->>Web: Update stored tokens
@@ -393,7 +365,6 @@ sequenceDiagram
     participant Gateway
     participant Auth
     participant Keycloak
-    participant Redis
     
     User->>Web: Click Logout
     Web->>Gateway: POST /auth/logout
@@ -404,7 +375,6 @@ sequenceDiagram
     Keycloak->>Keycloak: Invalidate session
     Keycloak-->>Auth: Logout success
     
-    Auth->>Redis: Delete cached session
     Auth-->>Gateway: 200 OK
     Gateway-->>Web: Logout success
     Web->>Web: Clear tokens from storage
@@ -459,14 +429,8 @@ sequenceDiagram
 - **Auth DB**: Lưu trữ thông tin xác thực bổ sung
 - **User DB**: Lưu trữ user profiles, settings
 
-### Redis
-- Cache user sessions (TTL = token expiry)
-- Lưu trữ refresh tokens
-- PubSub cho real-time features
-- Blacklist cho revoked tokens
-
 ---
-
+<!-- 
 ## 🔒 Bảo Mật
 
 ### Password Policy
@@ -670,7 +634,6 @@ public class AuthAuditAspect {
 ### Phase 3: Integration
 - [ ] Connect Auth Service to Keycloak
 - [ ] Setup Database databases
-- [ ] Setup Redis for session caching
 - [ ] Configure API Gateway routing
 - [ ] Add rate limiting
 - [ ] Setup CORS
@@ -746,4 +709,4 @@ curl -X POST http://localhost:9090/admin/realms/studyhub/users \
 
 **Tài liệu được tạo cho dự án StudyHub**  
 **Version**: 1.0  
-**Last Updated**: October 17, 2025
+**Last Updated**: October 17, 2025 -->
